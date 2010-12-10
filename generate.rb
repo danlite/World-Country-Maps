@@ -1,10 +1,11 @@
 require 'nokogiri'
 require 'fileutils'
 require 'osx/plist'
+require 'yaml'
 
-class Nokogiri::XML::Document
+class Nokogiri::XML::Node
   def remove_empty_lines!
-    self.xpath("//text()").each { |text| text.remove unless text.content.to_s.match(/[^\n\s]/m) }; self
+    self.xpath(".//text()").each { |text| text.remove unless text.content.to_s.match(/[^\n\s]/m) }; self
   end
 end
 
@@ -19,6 +20,8 @@ FileUtils.mkdir_p(%w{png svg trim}.map{|subdir| File.join("countries", subdir)})
 
 WORLD_SVG_FILENAME = 'resources/BlankMap-World6-Equirectangular.svg'
 COUNTRY_TABLE_FILENAME = 'resources/iso_country_table.html'
+
+subregions_store = YAML::load_file("resources/subregions.yml")
 
 if generate_svg
   @countries = []
@@ -54,10 +57,22 @@ if generate_svg
     next unless geometry
   
     countries_file.write(country + "\n")
+    
+    subregions = subregions_store[country] || []
+    subregion_geometries = {}
+    
+    subregions.each do |subregion|
+      subregion_geometry = geometry.search("//*[@id='#{country}_#{subregion}']").first
+      
+      if subregion_geometry
+        subregion_geometry.remove
+        countries_file.write("_#{subregion}\n")
+        subregion_geometries[subregion] = subregion_geometry
+      end
+    end
   
     base_file = File.open("base.xml")
     new_svg = Nokogiri::XML(base_file)
-  
     base_file.close
   
     (new_svg/"style").first.add_next_sibling(geometry)
@@ -67,6 +82,28 @@ if generate_svg
     svg_file = File.open("countries/svg/#{country}.svg", "w")
     new_svg.write_to(svg_file)
     svg_file.close
+    
+    geometry.search("./*").each do |child|
+      child.remove
+    end
+    geometry.remove_empty_lines!
+    
+    subregion_geometries.each do |subregion_name, subregion_geometry|
+      parent_clone = geometry.dup(1)
+      
+      base_file = File.open("base.xml")
+      new_svg = Nokogiri::XML(base_file)
+      base_file.close
+
+      (new_svg/"style").first.add_next_sibling(parent_clone)
+      (new_svg/"*[@id='#{country}']").first.add_child(subregion_geometry)
+      added_geometry = (new_svg/"*[@id='#{country}_#{subregion_name}']").first
+      added_geometry.default_namespace = new_svg.root.namespace
+
+      svg_file = File.open("countries/svg/#{country}_#{subregion_name}.svg", "w")
+      new_svg.write_to(svg_file)
+      svg_file.close
+    end
   end
 
   countries_file.close
@@ -91,7 +128,7 @@ if trim_png
   dict = Hash.new { |hash, key| hash[key] = {} }
   Dir.glob("countries/png/*").each do |png|
     file_name = File.basename(png)
-    base_name = file_name.match(/([a-z]{2})(@2x)?/)[1]
+    base_name = file_name.match(/([a-z]{2}(_[a-z]+)?)(@2x)?/)[1]
     scale = file_name.match(/@2x/) ? 2 : 1
     dict[base_name][scale.to_s] = `convert #{png} -trim -format "{{%X,%Y},{%w,%h}}" -write info:- countries/trim/#{file_name}`.strip
   end

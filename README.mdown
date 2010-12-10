@@ -44,3 +44,7 @@ The script also outputs a summary of the processed data:
         	<key>2</key>
         	<string>{{+204,+70},{421,200}}</string>
         </dict>
+
+Subregions
+----------
+`subregions.yml` contains a dictionary of countries that have any subregions represented on the map. Subregions listed here will be generated separately from the main region.
