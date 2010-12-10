@@ -1,5 +1,6 @@
 require 'nokogiri'
 require 'fileutils'
+require 'osx/plist'
 
 class Nokogiri::XML::Document
   def remove_empty_lines!
@@ -14,7 +15,7 @@ trim_png = !ARGV.include?("--no-trim")
 
 max_scale = generate_2x ? 2 : 1
 
-FileUtils.mkdir_p(%w{info png svg trim}.map{|subdir| File.join("countries", subdir)})
+FileUtils.mkdir_p(%w{png svg trim}.map{|subdir| File.join("countries", subdir)})
 
 WORLD_SVG_FILENAME = 'resources/BlankMap-World6-Equirectangular.svg'
 COUNTRY_TABLE_FILENAME = 'resources/iso_country_table.html'
@@ -80,17 +81,21 @@ if generate_png
     suffix = scale == 1 ? "" : "@2x"
     Dir.glob("countries/svg/*").each do |svg|
       base_name = File.basename(svg, ".svg")
-      `/opt/bin/convert +antialias -density #{density} -background none #{svg} countries/png/#{base_name}#{suffix}.png`
+      `convert +antialias -density #{density} -background none #{svg} countries/png/#{base_name}#{suffix}.png`
     end
   end
 end
 
 if trim_png
   puts "Trimming PNG files..."
+  dict = Hash.new { |hash, key| hash[key] = {} }
   Dir.glob("countries/png/*").each do |png|
     file_name = File.basename(png)
     base_name = file_name.match(/([a-z]{2})(@2x)?/)[1]
     scale = file_name.match(/@2x/) ? 2 : 1
-    `convert #{png} -trim -format "{{%X,%Y},{%w,%h}}" -write info:"countries/info/#{base_name}-#{scale}.txt" countries/trim/#{file_name}`
+    dict[base_name][scale.to_s] = `convert #{png} -trim -format "{{%X,%Y},{%w,%h}}" -write info:- countries/trim/#{file_name}`.strip
   end
+  info_plist = File.open("countries/countries_geometry.plist", "w")
+  OSX::PropertyList.dump(info_plist, dict)
+  info_plist.close
 end

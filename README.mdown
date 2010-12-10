@@ -10,7 +10,7 @@ Running `generate.rb` will generate all image files in three steps:
 
 1. Create individual SVG files of each country map
 2. Create PNG versions (optionally with a 2x resolution version) of each country map
-3. Trims each PNG to the size of the country and outputs the pixel offset and dimensions to a text file
+3. Trims each PNG to the size of the country and outputs the pixel offset and dimensions to a property list file
 
 The script takes a little while to complete, so you may wish to modify the process using these command-line flags:
 
@@ -25,9 +25,22 @@ The script will generate the following files for a given country, in this case, 
 
 * `countries/svg/ca.svg`
 * `countries/png/ca.png`
-* `countries/info/ca-1.txt`
 
-With the `--generate-2x` flag, these are also generated:
+With the `--generate-2x` flag, this file is also generated:
 
 * `countries/png/ca@2x.png`
-* `countries/info/ca-2.txt`
+
+The script also outputs a summary of the processed data:
+
+* `countries/countries.txt` - a list of all country codes which had map images produced
+* `countries/countries_geometry.plist` - a dictionary of country geometry info using the country code as keys
+
+    The geometry info is represented as a dictionary, the keys being the resolution (1 or 2) of the map, and the values being a string representation of a `CGRect`.
+
+        <key>ca</key>
+        <dict>
+        	<key>1</key>
+        	<string>{{+102,+35},{211,100}}</string>
+        	<key>2</key>
+        	<string>{{+204,+70},{421,200}}</string>
+        </dict>
