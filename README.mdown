@@ -1,7 +1,8 @@
 Requirements
 ------------
 - Ruby
-- Nokogiri Ruby gem
+- `nokogiri` gem
+- `osx-plist` gem
 - ImageMagick with SVG delegate library
 
 Usage
